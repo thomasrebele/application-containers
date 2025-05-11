@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: firefox-pod
+  name: firefox-pod
+spec:
+  containers:
+  - command:
+    - firefox
+    env:
+    - name: TERM
+      value: xterm
+    - name: WAYLAND_DISPLAY
+      value: wayland-1
+    - name: XDG_RUNTIME_DIR
+      value: /run/user/0
+    - name: PULSE_SERVER
+      value: unix:/run/user/0/pulse/native
+    - name: HOME
+      value: /home/tr-firefox-pod
+    image: localhost/thinbase:latest
+    name: hungrygoldstine
+    stdin: true
+    tty: true
+    volumeMounts:
+    - mountPath: /run/user/0/wayland-1
+      name: run-user-1001-wayland-1-host-0
+    - mountPath: /run/user/0/pulse
+      name: run-user-1001-pulse
+    - mountPath: /home/tr-firefox-pod
+      name: home-tr-containers-browsing-home-tr-host-1
+    - mountPath: /etc/ssl
+      name: etc-ssl-host-2
+      readOnly: true
+    - mountPath: /etc/static/ssl
+      name: etc-static-ssl-host-3
+    - mountPath: /nix/store/3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107/etc/ssl/certs/ca-bundle.crt
+      name: nix-store-3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107-etc-ssl-certs-ca-bundle.crt-host-4
+  restartPolicy: Never
+  volumes:
+  - hostPath:
+      path: /run/user/1001/wayland-1
+      type: File
+    name: run-user-1001-wayland-1-host-0
+  - hostPath:
+      path: /run/user/1001/pulse
+      type: Directory
+    name: run-user-1001-pulse
+  - hostPath:
+      path: /home/tr/containers/browsing/home/tr
+      type: Directory
+    name: home-tr-containers-browsing-home-tr-host-1
+  - hostPath:
+      path: /etc/ssl
+      type: Directory
+    name: etc-ssl-host-2
+  - hostPath:
+      path: /etc/static/ssl
+      type: Directory
+    name: etc-static-ssl-host-3
+  - hostPath:
+      path: /nix/store/3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107/etc/ssl/certs/ca-bundle.crt
+      type: File
+    name: nix-store-3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107-etc-ssl-certs-ca-bundle.crt-host-4
+
