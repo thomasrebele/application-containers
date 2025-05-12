@@ -1,18 +1,23 @@
 { pkgs ? import <nixpkgs> { }
 , pkgsLinux ? import <nixpkgs> { system = "x86_64-linux"; }
 }:
-pkgs.dockerTools.buildImage {
+let
+  addendum = pkgs.lib.fileset.toSource {
+    root = ./addendum;
+    fileset = ./addendum;
+  };
+in 
+with pkgsLinux; pkgs.dockerTools.buildImage {
   name = "thinbase";
   tag = "latest";
-  copyToRoot = pkgs.buildEnv {
-    name = "image-root";
-    paths = with pkgsLinux; [
-      bashInteractive
-      coreutils
-      busybox
-    ];
-    pathsToLink = [ "/bin" ];
-  };
+  copyToRoot = [
+    fakeNss
+    bashInteractive
+    coreutils
+    busybox
+    dbus
+    addendum
+  ];
   config = {
     Cmd = [ "${pkgsLinux.bashInteractive}/bin/bash" ];
   };
