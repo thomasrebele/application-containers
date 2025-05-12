@@ -10,3 +10,10 @@ Copying blob 1a6a1a647a52 done   |
 Copying config 416b498c4b done   | 
 Writing manifest to image destination
 Loaded image: localhost/thinbase:latest
+
+Usage example:
+
+$ python ../generate.py firefox.yaml firefox > firefox-merged.yaml
+$ podman pod rm firefox-pod; podman play kube firefox-merged.yaml
+
+$ podman pod start firefox-pod

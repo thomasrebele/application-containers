@@ -2,12 +2,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    app: firefox-pod
-  name: firefox-pod
+    app: thunderbird-pod
+  name: thunderbird-pod
 spec:
   containers:
   - command:
-    - firefox
+    - thunderbird
     env:
     - name: TERM
       value: xterm
@@ -15,21 +15,17 @@ spec:
       value: wayland-1
     - name: XDG_RUNTIME_DIR
       value: /run/user/0
-    - name: PULSE_SERVER
-      value: unix:/run/user/0/pulse/native
     - name: HOME
-      value: /home/tr-firefox-pod
+      value: /home/tr-thunderbird-pod
     image: localhost/thinbase:latest
-    name: firefox-container
+    name: thunderbird-container
     stdin: true
     tty: true
     volumeMounts:
     - mountPath: /run/user/0/wayland-1
       name: run-user-1001-wayland-1-host-0
-    - mountPath: /run/user/0/pulse
-      name: run-user-1001-pulse
-    - mountPath: /home/tr-firefox-pod
-      name: home-tr-containers-browsing-home-tr-host-1
+    - mountPath: /home/tr-thunderbird-pod
+      name: home-tr-containers-mail-home-tr-host-1
     - mountPath: /etc/ssl
       name: etc-ssl-host-2
       readOnly: true
@@ -44,13 +40,9 @@ spec:
       type: File
     name: run-user-1001-wayland-1-host-0
   - hostPath:
-      path: /run/user/1001/pulse
+      path: /home/tr/containers/mail/home/tr
       type: Directory
-    name: run-user-1001-pulse
-  - hostPath:
-      path: /home/tr/containers/browsing/home/tr
-      type: Directory
-    name: home-tr-containers-browsing-home-tr-host-1
+    name: home-tr-containers-mail-home-tr-host-1
   - hostPath:
       path: /etc/ssl
       type: Directory
