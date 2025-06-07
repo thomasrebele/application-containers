@@ -15,24 +15,32 @@ spec:
       value: wayland-1
     - name: XDG_RUNTIME_DIR
       value: /run/user/0
+    - name: FONTCONFIG_PATH
+      value: /etc/fonts
     - name: HOME
       value: /home/tr-thunderbird-pod
     image: localhost/thinbase:latest
     name: thunderbird-container
     stdin: true
     tty: true
+    #securityContext:
+    #  runAsUser: 1000
+    #  runAsGroup: 1000
+    #  #allowPrivilegeEscalation: false
     volumeMounts:
     - mountPath: /run/user/0/wayland-1
       name: run-user-1001-wayland-1-host-0
     - mountPath: /home/tr-thunderbird-pod
-      name: home-tr-containers-mail-home-tr-host-1
+      name: home-dir
     - mountPath: /etc/ssl
       name: etc-ssl-host-2
       readOnly: true
     - mountPath: /etc/static/ssl
       name: etc-static-ssl-host-3
-    - mountPath: /nix/store/3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107/etc/ssl/certs/ca-bundle.crt
-      name: nix-store-3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107-etc-ssl-certs-ca-bundle.crt-host-4
+    - mountPath: /etc/fonts
+      name: etc-fonts
+    - mountPath: /nix/store/bzyihlr7n1gg9hlkdhilxsh7a4qi9ipx-nss-cacert-3.108/etc/ssl/certs/ca-bundle.crt
+      name: ca-bundle
   restartPolicy: Never
   volumes:
   - hostPath:
@@ -40,9 +48,9 @@ spec:
       type: File
     name: run-user-1001-wayland-1-host-0
   - hostPath:
-      path: /home/tr/containers/mail/home/tr
+      path: /home/tr/container-data/mail/home/tr
       type: Directory
-    name: home-tr-containers-mail-home-tr-host-1
+    name: home-dir
   - hostPath:
       path: /etc/ssl
       type: Directory
@@ -52,7 +60,11 @@ spec:
       type: Directory
     name: etc-static-ssl-host-3
   - hostPath:
-      path: /nix/store/3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107/etc/ssl/certs/ca-bundle.crt
+      path: /nix/store/bzyihlr7n1gg9hlkdhilxsh7a4qi9ipx-nss-cacert-3.108/etc/ssl/certs/ca-bundle.crt
       type: File
-    name: nix-store-3skhm0g57g1g3cynnxmics388jvg163w-nss-cacert-3.107-etc-ssl-certs-ca-bundle.crt-host-4
+    name: ca-bundle
+  - hostPath:
+      path: /etc/fonts
+      type: Directory
+    name: etc-fonts
 
