@@ -10,18 +10,18 @@ def get_store_paths(commands):
         try:
             symlink_path = subprocess.check_output(["which", cmd]).decode().strip()
             real_path = os.path.realpath(symlink_path)  # Resolve symlink
-            
+
             if real_path.startswith("/nix/store"):
                 store_paths[cmd] = real_path
         except subprocess.CalledProcessError:
             print(f"Warning: {cmd} not found in PATH", file=sys.stderr)
-    
+
     return store_paths
 
-def generate_yaml(template_file, commands):
+def generate_yaml(template_file, commands, command):
     """Generate the YAML configuration with volume mounts and command execution."""
     store_paths = get_store_paths(commands)
-    
+
     dependencies = set()
     for path in store_paths.values():
         dependencies.update(subprocess.check_output(["nix-store", "-qR", path]).decode().splitlines())
@@ -69,17 +69,30 @@ def generate_yaml(template_file, commands):
         })
 
     # Set the container's startup command using resolved paths
-    container["command"] = [store_paths[cmd] for cmd in commands]
+    container["command"] = ["/bin/start-script.sh"]
+    container["args"] = [store_paths[command[0]]] + command[1:]
 
     return yaml.dump(config)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <template.yaml> <command1> [command2] ...", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <template.yaml> [--add command2]... <command> [arg] ...", file=sys.stderr)
         sys.exit(1)
 
     template_file = sys.argv[1]
-    commands = sys.argv[2:]
 
-    print(generate_yaml(template_file, commands))
+    commands = []
+    i = 1
+    while i < len(sys.argv)-1:
+        i+=1
+        if sys.argv[i] == "--add":
+            i+=1
+            commands += [sys.argv[i]]
+        else:
+            break
+
+    commands += [sys.argv[i]]
+    command = sys.argv[i:]
+
+    print(generate_yaml(template_file, commands, command))
 
