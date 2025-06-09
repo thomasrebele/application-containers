@@ -39,7 +39,7 @@ spec:
       name: etc-static-ssl-host-3
     - mountPath: /etc/fonts
       name: etc-fonts
-    - mountPath: /nix/store/bzyihlr7n1gg9hlkdhilxsh7a4qi9ipx-nss-cacert-3.108/etc/ssl/certs/ca-bundle.crt
+    - mountPath: /nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt
       name: ca-bundle
   restartPolicy: Never
   volumes:
@@ -60,7 +60,7 @@ spec:
       type: Directory
     name: etc-static-ssl-host-3
   - hostPath:
-      path: /nix/store/bzyihlr7n1gg9hlkdhilxsh7a4qi9ipx-nss-cacert-3.108/etc/ssl/certs/ca-bundle.crt
+      path: /nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt
       type: File
     name: ca-bundle
   - hostPath:
