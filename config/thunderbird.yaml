@@ -41,6 +41,8 @@ spec:
       name: etc-fonts
     - mountPath: /nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt
       name: ca-bundle
+    - mountPath: /etc/localtime
+      name: localtime
   restartPolicy: Never
   volumes:
   - hostPath:
@@ -67,4 +69,8 @@ spec:
       path: /etc/fonts
       type: Directory
     name: etc-fonts
+  - hostPath:
+      path: /etc/localtime
+      type: File
+    name: localtime
 
