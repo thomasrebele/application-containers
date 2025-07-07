@@ -6,18 +6,18 @@ import "strings"
 import "encoding/json"
 import "io/ioutil"
 
-type Pair struct {
+type KeyValue struct {
     Key   string
     Value interface{}
 }
 
-type K Pair;
+type P = KeyValue
 
 type Map struct {
-	items []K
+	items []KeyValue
 }
 
-func M(keyValues ...K) Map {
+func M(keyValues ...KeyValue) Map {
 	return Map{items: keyValues};
 }
 
@@ -25,21 +25,21 @@ func A(items ...Map) []Map {
 	return items;
 }
 
-type YamlNext int;
+type OutputState int;
 const (
-	YamlNextListStart YamlNext = iota
-	YamlNextKeyValue 
-	YamlNextValue
+	OutputStateListStart OutputState = iota
+	OutputStateMap 
+	OutputStateValue
 )
 
 func toYaml(data interface{}) string {
 	var sb strings.Builder
-	toYamlHelper(data, &sb, 0, YamlNextKeyValue)
+	toYamlHelper(data, &sb, 0, OutputStateMap)
 	return sb.String()
 }
 
 func toYamlHelper(data interface{}, sb *strings.Builder,
-		indent int, cont YamlNext) {
+		indent int, cont OutputState) {
 	prefix := strings.Repeat("  ", indent)
 	switch v := data.(type) {
 	case string:
@@ -47,39 +47,20 @@ func toYamlHelper(data interface{}, sb *strings.Builder,
 
 	case Map:
 		first := true
-		for _, value := range v.items {
-			if !first || (cont != YamlNextKeyValue && cont != YamlNextListStart) {
+		for _, item := range v.items {
+			if !first || (cont != OutputStateMap && cont != OutputStateListStart) {
 				sb.WriteString("\n")
 			}
-			if !first || cont != YamlNextListStart {
+			if !first || cont != OutputStateListStart {
 				sb.WriteString(fmt.Sprintf("%s", prefix))
 			}
 			first = false
-			toYamlHelper(value, sb, indent, YamlNextValue)
+
+			sb.WriteString(item.Key)
+			sb.WriteString(":")
+			toYamlHelper(item.Value, sb, indent+1, OutputStateValue)
 		}
 
-	case K:
-		first := true
-		if !first || cont != YamlNextListStart {
-			sb.WriteString(fmt.Sprintf("%s", prefix))
-		}
-		sb.WriteString(v.Key)
-		sb.WriteString(":")
-		toYamlHelper(v.Value, sb, indent+1, YamlNextValue)
-
-	case map[string]interface{}:
-		first := true
-		for key, value := range v {
-			if !first || (cont != YamlNextKeyValue && cont != YamlNextListStart) {
-				sb.WriteString("\n")
-			}
-			if !first || cont != YamlNextListStart {
-				sb.WriteString(fmt.Sprintf("%s", prefix))
-			}
-			first = false
-			sb.WriteString(fmt.Sprintf("%s:", key))
-			toYamlHelper(value, sb, indent+1, YamlNextValue)
-		}
 	default:
 		rv := reflect.ValueOf(data)
 		if rv.Kind() == reflect.Slice {
@@ -90,7 +71,7 @@ func toYamlHelper(data interface{}, sb *strings.Builder,
 				}
 				item := rv.Index(i).Interface()
 				sb.WriteString(fmt.Sprintf("%s- ", prefix))
-				toYamlHelper(item, sb, indent, YamlNextListStart)
+				toYamlHelper(item, sb, indent, OutputStateListStart)
 			}
 			return;
 		}
@@ -128,73 +109,35 @@ func main() {
 	json.Unmarshal(bs, &conf)
 	//fmt.Printf("%+v\n", conf)
 
-	var output = map[string]interface{} {
-		"apiVersion": "v1",
-		"metadata": map[string]interface{} {
-			"labels": map[string]interface{} {
-				"app": "firefox-pod",
-			},
-			"name": "firefox-pod",
-		},
-		//"spec": map[string]interface{} {
-		//	"containers": []string{
-		//		"",
-		//	}.
-		//},
-		"spec": map[string]interface{} {
-			"containers": []map[string]interface{} {
-				{
-					"command": "firefox",
-					"env": []map[string]interface{} {
-						{
-							"name": "TERM",
-							"value": "xterm",
-						},
-						{
-							"name": "WAYLAND_DISPLAY",
-							"value": "wayland-1",
-						},
-
-					},
-				},
-			},
-		},
-	}
-	yaml := toYaml(output)
-	fmt.Println("--------------------------------------------------------------------------------")
-	fmt.Println(yaml)
-	fmt.Println("--------------------------------------------------------------------------------")
 
 	
-
-	
-
-	//xyz := []Pair {
-	//	{"apiVersion", "v1"},
-	//	{"metadata", []Pair{
-	//		{"labels", []Pair{
-	//			{"xyz", "123"},
-	//		}},
-	//	}},
-	//}
-
 	xyz := M(
-		K{"apiVersion", "v1"},
-		K{"metadata", M(
-			K{"labels", M(K{"app", "firefox-pod"})},
-			K{"name", "firefox-pod"},
+		P{"apiVersion", "v1"},
+		P{"metadata", M(
+			P{"labels", M(P{"app", "firefox-pod"})},
+			P{"name", "firefox-pod"},
 		)},
-		K{"spec", M(
-			K{"containers", A(M(
-				K{"command", "firefox"},
-				K{"env", A(
-					M(K{"name", "TERM"}, K{"value", "xterm"}),
-					M(K{"name", "WAYLAND_DISPLAY"}, K{"value", "wayland-1"}),
+		
+	)
+
+	xyz2 := M(
+		P{"spec", M(
+			P{"containers", A(M(
+				P{"command", "firefox"},
+				P{"env", A(
+					M(P{"name", "TERM"}, P{"value", "xterm"}),
+					M(P{"name", "WAYLAND_DISPLAY"}, P{"value", "wayland-1"}),
 				)},
 			))},
 		)},
 	)
-	yaml = toYaml(xyz)
+
+	// TODO
+	//xyz = xyz.merge(xyz2)
+
+	yaml := toYaml(xyz)
+
 	fmt.Println(yaml)
 
+	_ = xyz2
 }
