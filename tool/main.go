@@ -25,6 +25,77 @@ func A(items ...Map) []Map {
 	return items;
 }
 
+func (map1 *Map) index() map[string]KeyValue {
+	kv := map[string]KeyValue {};
+	for _, item := range map1.items {
+		kv[item.Key] = item
+	}
+	return kv;
+}
+
+func (map1 Map) merge(map2 Map) Map {
+	var result Map
+	map2index := map2.index()
+
+	var done = map[string]bool{}
+
+	// iterate over map1 and merge with values from map2 if available
+	for _, item := range map1.items {
+		var k1 = item.Key
+		var v1 = item.Value
+
+		var v2t, exists = map2index[k1]
+		if !exists {
+			result.items = append(result.items, KeyValue{k1, v1})
+			done[k1] = true
+			continue
+		}
+		var v2 = v2t.Value
+
+		switch v := v1.(type) {
+			case Map:
+				if reflect.TypeOf(v2) != reflect.TypeOf(v1) {
+					panic(fmt.Sprintf("corresponding type of attribute '%s' needs to be a map, but was %s", k1, reflect.TypeOf(v2)))
+				}
+
+				var merged = v1.(Map).merge(v2.(Map))
+				result.items = append(result.items, KeyValue{k1, merged})
+				done[k1] = true
+				continue
+
+			case []Map:
+				if reflect.TypeOf(v2) != reflect.TypeOf(v1) {
+					panic(fmt.Sprintf("corresponding type of attribute '%s' needs to be an array, but was %s", k1, reflect.TypeOf(v2)))
+				}
+				var merged = []Map{}
+				merged = append(merged, v1.([]Map)...)
+				merged = append(merged, v2.([]Map)...)
+				result.items = append(result.items, KeyValue{k1, merged})
+				done[k1] = true
+				continue
+			
+			default:
+				panic(fmt.Sprintf("Unknown type: %s", reflect.TypeOf(v)))
+		}
+		panic(fmt.Sprintf("values not mergeable: %s and %s", reflect.TypeOf(v1), reflect.TypeOf(v2)))
+	}
+
+	// add remaining entries from map2
+	for _, item := range map2.items {
+		var k2 = item.Key
+		var _, exists = done[k2]
+		if exists {
+			continue
+		}
+
+		var v2 = item.Value
+		result.items = append(result.items, KeyValue{k2, v2})
+	}
+
+	return result;
+}
+
+
 type OutputState int;
 const (
 	OutputStateListStart OutputState = iota
@@ -80,16 +151,6 @@ func toYamlHelper(data interface{}, sb *strings.Builder,
 	}
 }
 
-//func printYaml(data []KeyValue) string {
-//	var sb strings.Builder
-//
-//	sb.WriteString("test")
-//	for _, str := range data {
-//		sb.WriteString(str.Key())
-//	}
-//
-//	return sb.String()
-//}
 
 
 func main() {
@@ -121,6 +182,7 @@ func main() {
 	)
 
 	xyz2 := M(
+		P{"metadata", M(P{"test", "abc"})},
 		P{"spec", M(
 			P{"containers", A(M(
 				P{"command", "firefox"},
@@ -132,8 +194,20 @@ func main() {
 		)},
 	)
 
-	// TODO
-	//xyz = xyz.merge(xyz2)
+
+	xyz3 := M(
+		P{"spec", M(
+			P{"containers", A(M(
+				P{"env", A(
+					M(P{"name", "FONTS"}, P{"value", "neo-font"}),
+				)},
+			))},
+		)},
+	)
+
+
+	xyz = xyz.merge(xyz2)
+	xyz = xyz.merge(xyz3)
 
 	yaml := toYaml(xyz)
 
