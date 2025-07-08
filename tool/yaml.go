@@ -141,7 +141,7 @@ func (map1 Map) merge(map2 Map) Map {
 				} else if item.ArrayMergeMode == OptArrayMergeIntegrate {
 					var v2m []Map = v2.([]Map)
 					if len(v2m) != 1 {
-						panic(fmt.Sprintf("the second array of property '%s' must have one element", k1))
+						panic(fmt.Sprintf("the second array of property '%s' must have one element, but its length was %d: %+v", k1, len(v2m), v2m))
 					}
 					var other = v2m[0]
 					
