@@ -38,7 +38,7 @@ func addVolume(conf Map, vol Volume) Map {
 		filetype = "File"
 	}
 
-	return M(
+	return conf.merge(M(
 		P("spec", M(
 			SP("containers", A(M(
 				P("volumeMounts", A(M(
@@ -54,7 +54,7 @@ func addVolume(conf Map, vol Volume) Map {
 				)),
 			))),
 		)),
-	)
+	))
 }
 
 func mount(hostPath string) Volume {
@@ -99,6 +99,8 @@ func main() {
 		P("spec", M(
 			SP("containers", A(M(
 				P("name", nil),
+				P("image", nil),
+				P("securityContext", nil),
 				P("env", A()),
 				P("volumeMounts", A()),
 			))),
@@ -175,7 +177,6 @@ func main() {
 			options = (f.(map[string]interface{}))
 			name = options["name"].(string)
 		}
-		fmt.Println(name)
 		
 		fconf := M()
 		switch name {
@@ -184,14 +185,17 @@ func main() {
 				env("WAYLAND_DISPLAY", "wayland-1"),
 				env("XDG_RUNTIME_DIR", runPath))
 			fconf = addVolume(fconf, mount(runPath + "/wayland-1").as("f-wayland"))
+
 		case "pulse":
 			fconf = envConfig(
 				env("PULSE_SERVER", "unix:/run/user/1001/pulse/native"))
 			fconf = addVolume(fconf, mount(runPath + "/pulse").as("f-pulse"))
+
 		case "fonts":
 			fconf = envConfig(
 				env("FONTCONFIG_PATH", "/etc/fonts"))
 			fconf = addVolume(fconf, mount("/etc/fonts").as("f-fonts"))
+
 		case "cacert":
 			// TODO avoid hardcoding!
 			fconf = M()
@@ -200,7 +204,15 @@ func main() {
 			fconf = addVolume(fconf, mount("/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt").as("f-cacert-3"))
 
 		case "webcam":
-			fmt.Println(options)
+			var count = 0
+			fconf = M()
+			for _, device := range options["devices"].([]interface{}) {
+				d := device.(string)
+				fmt.Println(d)
+				fconf = addVolume(fconf, mount("/dev/" + d).as("f-webcam-" + d))
+				count += 1
+			}
+
 		default:
 			fmt.Printf("Warning: option %s not yet supported\n", name)
 		}
