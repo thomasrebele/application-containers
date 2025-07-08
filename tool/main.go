@@ -30,53 +30,64 @@ func main() {
 	_ = dependencies
 
 	// default pod options
+	skeleton := M(
+		P("apiVersion", "v1"),
+		P("metadata", M()),
+		P("spec", M(
+			P("containers", A(M(
+				P("name", nil),
+				P("env", A(
+				)),
+			))),
+		)),
+	)
+
 	baseConfig := M(
-		P{"apiVersion", "v1"},
-		P{"spec", M(
-			P{"containers", A(M(
-				P{"env", A(
-					M(P{"name", "TERM"}, P{"value", "xterm"}),
-				)},
-				P{"image", "localhost/thinbase:latest"},
-			))},
-			P{"restartPolicy", "Never"},
-		)},
+		P("spec", M(
+			P("containers", A(M(
+				P("env", A(
+					M(P("name", "TERM"), P("value", "xterm")),
+				)),
+				P("image", "localhost/thinbase:latest"),
+			))),
+			P("restartPolicy", "Never"),
+		)),
 	)
 
 	var uid = 1001
 
 	// options related to security
 	securityConfig := M(
-		P{"metadata", M(
-			P{"annotations", M(P{"io.podman.annotations.userns", "keep-id"})},
-		)},
-		P{"spec", M(
-			P{"containers", A(M(
-				P{"securityContext", M(
-					P{"allowPrivilegeEscalation", false},
-					P{"runAsUser", uid},
-					P{"runAsGroup", uid},
-					P{"fsUser", uid},
-					P{"fsGroup", uid},
-				)},
-			))},
-		)},
+		P("metadata", M(
+			P("annotations", M(P("io.podman.annotations.userns", "keep-id"))),
+		)),
+		P("spec", M(
+			P("containers", A(M(
+				P("securityContext", M(
+					P("allowPrivilegeEscalation", false),
+					P("runAsUser", uid),
+					P("runAsGroup", uid),
+					P("fsUser", uid),
+					P("fsGroup", uid),
+				)),
+			))),
+		)),
 	)
 
 	// TODO check which properties can be removed
 	name := conf["name"]
 	namingConfig := M(
-		P{"metadata", M(
-			P{"name", name},
-			P{"labels", M(
-				P{"app", name},
-			)},
-		)},
-		P{"spec", M(
-			P{"containers", A(M(
-				P{"name", fmt.Sprintf("%s%s",name,"-container")},
-			))},
-		)},
+		P("metadata", M(
+			P("name", name),
+			P("labels", M(
+				P("app", name),
+			)),
+		)),
+		P("spec", M(
+			P("containers", A(M(
+				P("name", fmt.Sprintf("%s%s",name,"-container")),
+			))),
+		)),
 	)
 
 
@@ -85,42 +96,44 @@ func main() {
 	containerHomePath := fmt.Sprintf("/home/%s", name)
 	targetHomePath := conf["home"].(map[string]interface{})["path"]
 	homeConfig := M(
-		P{"spec", M(
-			P{"containers", A(M(
-				P{"env", A(
-					M(P{"name", "HOME"}, P{"value", containerHomePath}),
-				)},
-				P{"volumeMounts", A(M(
-					P{"mountPath", containerHomePath},
-					P{"name", "home-dir"},
-				))},
-			))},
-			P{"volumes", A(M(
-				P{"name", "home-dir"},
-				P{"hostPath", M(
-					P{"path", targetHomePath},
-					P{"type", "Directory"},
-				)},
-			))},
-		)},
+		P("spec", M(
+			P("containers", A(M(
+				P("env", A(
+					M(P("name", "HOME"), P("value", containerHomePath)),
+				)),
+				P("volumeMounts", A(M(
+					P("mountPath", containerHomePath),
+					P("name", "home-dir"),
+				))),
+			))),
+			P("volumes", A(M(
+				P("name", "home-dir"),
+				P("hostPath", M(
+					P("path", targetHomePath),
+					P("type", "Directory"),
+				)),
+			))),
+		)),
 	)
 
+	
 
 //	xyz3 := M(
-//		P{"metadata", M(
-//			P{"labels", M(P{"app", "firefox-pod"})},
-//			P{"name", "firefox-pod"},
-//		)},
-//		P{"spec", M(
-//			P{"containers", A(M(
-//				P{"env", A(
-//					M(P{"name", "FONTS"}, P{"value", "neo-font"}),
-//				)},
-//			))},
-//		)},
+//		P("metadata", M(
+//			P("labels", M(P("app", "firefox-pod"))),
+//			P("name", "firefox-pod"),
+//		)),
+//		P("spec", M(
+//			P("containers", A(M(
+//				P("env", A(
+//					M(P("name", "FONTS"), P("value", "neo-font")),
+//				)),
+//			))),
+//		)),
 //	)
 
-	yaml := namingConfig.
+	yaml := skeleton.
+		merge(namingConfig).
 		merge(securityConfig).
 		merge(baseConfig).
 		merge(homeConfig)

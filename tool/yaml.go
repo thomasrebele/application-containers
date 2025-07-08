@@ -49,8 +49,6 @@ type KeyValue struct {
     Value interface{}
 }
 
-type P = KeyValue
-
 type Map struct {
 	items []KeyValue
 }
@@ -61,6 +59,10 @@ func M(keyValues ...KeyValue) Map {
 
 func A(items ...Map) []Map {
 	return items;
+}
+
+func P(key string, value interface{}) KeyValue {
+	return KeyValue{key, value}
 }
 
 func (map1 *Map) index() map[string]KeyValue {
@@ -89,11 +91,18 @@ func (map1 Map) merge(map2 Map) Map {
 			continue
 		}
 		var v2 = v2t.Value
+		// always overwrite nil values
+		// (nil values may be used for ordering the properties)
+		if v1 == nil {
+			result.items = append(result.items, KeyValue{k1, v2})
+			done[k1] = true
+			continue
+		}
 
-		switch v := v1.(type) {
+		switch v1.(type) {
 			case Map:
 				if reflect.TypeOf(v2) != reflect.TypeOf(v1) {
-					panic(fmt.Sprintf("corresponding type of attribute '%s' needs to be a map, but was %s", k1, reflect.TypeOf(v2)))
+					panic(fmt.Sprintf("corresponding type of property '%s' needs to be a map, but was %s", k1, reflect.TypeOf(v2)))
 				}
 
 				var merged = v1.(Map).merge(v2.(Map))
@@ -103,19 +112,30 @@ func (map1 Map) merge(map2 Map) Map {
 
 			case []Map:
 				if reflect.TypeOf(v2) != reflect.TypeOf(v1) {
-					panic(fmt.Sprintf("corresponding type of attribute '%s' needs to be an array, but was %s", k1, reflect.TypeOf(v2)))
+					panic(fmt.Sprintf("corresponding type of property '%s' needs to be an array, but was %s", k1, reflect.TypeOf(v2)))
 				}
+				var v2m []Map = v2.([]Map)
+				_ = v2m
+				if len(v2m) != 1 {
+					panic(fmt.Sprintf("the second array of property '%s' must have one element", k1))
+				}
+				var other = v2m[0]
 				var merged = []Map{}
-				merged = append(merged, v1.([]Map)...)
-				merged = append(merged, v2.([]Map)...)
+				
+				for _, v := range v1.([]Map) {
+					merged = append(merged, v.merge(other))
+				}
+				if k1 == "env" {
+					fmt.Printf("p %s v1 %s v2 %s merged %s\n", k1, v1, v2, merged)
+				}
+				//merged = append(merged, v1.([]Map)...)
+				//merged = append(merged, v2.([]Map)...)
 				result.items = append(result.items, KeyValue{k1, merged})
 				done[k1] = true
 				continue
 			
-			default:
-				panic(fmt.Sprintf("Unknown type: %s", reflect.TypeOf(v)))
 		}
-		panic(fmt.Sprintf("values not mergeable: %s and %s", reflect.TypeOf(v1), reflect.TypeOf(v2)))
+		panic(fmt.Sprintf("values not mergeable for property '%s': %s and %s", k1, reflect.TypeOf(v1), reflect.TypeOf(v2)))
 	}
 
 	// add remaining entries from map2
