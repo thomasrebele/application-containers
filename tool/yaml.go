@@ -4,45 +4,6 @@ import "reflect"
 import "fmt"
 import "strings"
 
-// An example how this experimental code could be used:
-
-//	xyz := M(
-//		P{"apiVersion", "v1"},
-//		P{"metadata", M(
-//			P{"labels", M(P{"app", "firefox-pod"})},
-//			P{"name", "firefox-pod"},
-//		)},
-//		
-//	)
-//
-//	xyz2 := M(
-//		P{"metadata", M(P{"test", "abc123"})},
-//		P{"spec", M(
-//			P{"containers", A(M(
-//				P{"command", "firefox"},
-//				P{"env", A(
-//					M(P{"name", "TERM"}, P{"value", "xterm"}),
-//					M(P{"name", "WAYLAND_DISPLAY"}, P{"value", "wayland-1"}),
-//				)},
-//			))},
-//		)},
-//	)
-//
-//
-//	xyz3 := M(
-//		P{"spec", M(
-//			P{"containers", A(M(
-//				P{"env", A(
-//					M(P{"name", "FONTS"}, P{"value", "neo-font"}),
-//				)},
-//			))},
-//		)},
-//	)
-//
-//	xyz = xyz.merge(xyz2)
-//	xyz = xyz.merge(xyz3)
-//	yaml := toYaml(xyz)
-//	fmt.Println(yaml)
 
 type OptArrayMerge int;
 const (
