@@ -44,25 +44,45 @@ import "strings"
 //	yaml := toYaml(xyz)
 //	fmt.Println(yaml)
 
+type OptArrayMerge int;
+const (
+	OptArrayMergeConcat = iota
+	// merge by copying the content of the sole (!) item of the second array
+	// into each items of the first
+	OptArrayMergeIntegrate
+)
+
+
 type KeyValue struct {
     Key   string
     Value interface{}
+	ArrayMergeMode OptArrayMerge
 }
 
 type Map struct {
 	items []KeyValue
 }
 
+// 'M' stands for "map"
 func M(keyValues ...KeyValue) Map {
 	return Map{items: keyValues};
 }
 
+// 'A' stands for "array"
 func A(items ...Map) []Map {
 	return items;
 }
 
+// 'P' stands for "property"
 func P(key string, value interface{}) KeyValue {
-	return KeyValue{key, value}
+	return KeyValue{key, value, OptArrayMergeConcat}
+}
+
+// 'P' stands for "singular property"
+// i.e., its value is a single-element array;
+// merging such an array will result in a single-element array
+func SP(key string, value interface{}) KeyValue {
+	return KeyValue{key, value, OptArrayMergeIntegrate}
 }
 
 func (map1 *Map) index() map[string]KeyValue {
@@ -86,7 +106,7 @@ func (map1 Map) merge(map2 Map) Map {
 
 		var v2t, exists = map2index[k1]
 		if !exists {
-			result.items = append(result.items, KeyValue{k1, v1})
+			result.items = append(result.items, P(k1, v1))
 			done[k1] = true
 			continue
 		}
@@ -94,7 +114,7 @@ func (map1 Map) merge(map2 Map) Map {
 		// always overwrite nil values
 		// (nil values may be used for ordering the properties)
 		if v1 == nil {
-			result.items = append(result.items, KeyValue{k1, v2})
+			result.items = append(result.items, P(k1, v2))
 			done[k1] = true
 			continue
 		}
@@ -106,7 +126,7 @@ func (map1 Map) merge(map2 Map) Map {
 				}
 
 				var merged = v1.(Map).merge(v2.(Map))
-				result.items = append(result.items, KeyValue{k1, merged})
+				result.items = append(result.items, P(k1, merged))
 				done[k1] = true
 				continue
 
@@ -114,23 +134,27 @@ func (map1 Map) merge(map2 Map) Map {
 				if reflect.TypeOf(v2) != reflect.TypeOf(v1) {
 					panic(fmt.Sprintf("corresponding type of property '%s' needs to be an array, but was %s", k1, reflect.TypeOf(v2)))
 				}
-				var v2m []Map = v2.([]Map)
-				_ = v2m
-				if len(v2m) != 1 {
-					panic(fmt.Sprintf("the second array of property '%s' must have one element", k1))
-				}
-				var other = v2m[0]
 				var merged = []Map{}
-				
-				for _, v := range v1.([]Map) {
-					merged = append(merged, v.merge(other))
+				if item.ArrayMergeMode == OptArrayMergeConcat {
+					merged = append(merged, v1.([]Map)...)
+					merged = append(merged, v2.([]Map)...)
+				} else if item.ArrayMergeMode == OptArrayMergeIntegrate {
+					var v2m []Map = v2.([]Map)
+					if len(v2m) != 1 {
+						panic(fmt.Sprintf("the second array of property '%s' must have one element", k1))
+					}
+					var other = v2m[0]
+					
+					for _, v := range v1.([]Map) {
+						merged = append(merged, v.merge(other))
+					}
+					if k1 == "env" {
+						fmt.Printf("p %s v1 %s v2 %s merged %s\n", k1, v1, v2, merged)
+					}
+				} else {
+					panic("Unknown array merge option")
 				}
-				if k1 == "env" {
-					fmt.Printf("p %s v1 %s v2 %s merged %s\n", k1, v1, v2, merged)
-				}
-				//merged = append(merged, v1.([]Map)...)
-				//merged = append(merged, v2.([]Map)...)
-				result.items = append(result.items, KeyValue{k1, merged})
+				result.items = append(result.items, KeyValue{k1, merged, item.ArrayMergeMode})
 				done[k1] = true
 				continue
 			
@@ -147,12 +171,11 @@ func (map1 Map) merge(map2 Map) Map {
 		}
 
 		var v2 = item.Value
-		result.items = append(result.items, KeyValue{k2, v2})
+		result.items = append(result.items, P(k2, v2))
 	}
 
 	return result;
 }
-
 
 type OutputState int;
 const (

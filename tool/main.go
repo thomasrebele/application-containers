@@ -34,9 +34,9 @@ func main() {
 		P("apiVersion", "v1"),
 		P("metadata", M()),
 		P("spec", M(
-			P("containers", A(M(
+			SP("containers", A(M(
 				P("name", nil),
-				P("env", A(
+				SP("env", A(
 				)),
 			))),
 		)),
