@@ -208,17 +208,19 @@ func toYamlHelper(data interface{}, sb *strings.Builder,
 	case Map:
 		first := true
 		for _, item := range v.items {
-			if !first || (cont != OutputStateMap && cont != OutputStateListStart) {
-				sb.WriteString("\n")
-			}
-			if !first || cont != OutputStateListStart {
-				sb.WriteString(fmt.Sprintf("%s", prefix))
-			}
-			first = false
+			if item.Value != nil {
+				if !first || (cont != OutputStateMap && cont != OutputStateListStart) {
+					sb.WriteString("\n")
+				}
+				if !first || cont != OutputStateListStart {
+					sb.WriteString(fmt.Sprintf("%s", prefix))
+				}
+				first = false
 
-			sb.WriteString(item.Key)
-			sb.WriteString(":")
-			toYamlHelper(item.Value, sb, indent+1, OutputStateValue)
+				sb.WriteString(item.Key)
+				sb.WriteString(":")
+				toYamlHelper(item.Value, sb, indent+1, OutputStateValue)
+			}
 		}
 
 	default:

@@ -45,6 +45,9 @@ func getRecursivePaths(paths []string) map[string]bool {
 		}
 
 		for _, p := range strings.Split(string(output), "\n") {
+			if p == "" {
+				continue
+			}
 			result[p] = true
 		}
 	}

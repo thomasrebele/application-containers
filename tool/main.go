@@ -70,8 +70,6 @@ func (vol Volume) as(name string) Volume {
 }
 
 func main() {
-	fmt.Println("main")
-
 	// read json config
 	bs, err := ioutil.ReadFile("firefox.json")
 	if err != nil {
@@ -85,21 +83,20 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(fmt.Sprintf("test: %s\n",conf))
 
-	var storePaths = getStorePaths("firefox", "fc-cache")
-	var dependencies = getRecursivePaths(slices.Collect(maps.Values(storePaths)))
-	//fmt.Printf("%+v\n", dependencies)
-	_ = dependencies
+	
 
 	// default pod options
 	skeleton := M(
 		P("apiVersion", "v1"),
+		P("kind", "Pod"),
 		P("metadata", M()),
 		P("spec", M(
 			SP("containers", A(M(
 				P("name", nil),
 				P("image", nil),
+				P("command", nil),
+				P("args", nil),
 				P("securityContext", nil),
 				P("env", A()),
 				P("volumeMounts", A()),
@@ -197,10 +194,11 @@ func main() {
 			fconf = addVolume(fconf, mount("/etc/fonts").as("f-fonts"))
 
 		case "cacert":
-			// TODO avoid hardcoding!
 			fconf = M()
 			fconf = addVolume(fconf, mount("/etc/ssl").as("f-cacert-1"))
 			fconf = addVolume(fconf, mount("/etc/static/ssl").as("f-cacert-2"))
+			// TODO avoid hardcoding!
+			// use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
 			fconf = addVolume(fconf, mount("/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt").as("f-cacert-3"))
 
 		case "webcam":
@@ -208,7 +206,6 @@ func main() {
 			fconf = M()
 			for _, device := range options["devices"].([]interface{}) {
 				d := device.(string)
-				fmt.Println(d)
 				fconf = addVolume(fconf, mount("/dev/" + d).as("f-webcam-" + d))
 				count += 1
 			}
@@ -218,6 +215,34 @@ func main() {
 		}
 		featureConfig = featureConfig.merge(fconf)
 	}
+
+	// TODO avoid copying the map again and again!
+	storeConfig := M()
+	
+	// TODO use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
+	var packages1 = conf["packages"].([]interface{})
+	var packages = make([]string, len(packages1))
+	for i, v := range packages1 {
+		packages[i] = v.(string)
+	}
+	var storePaths = getStorePaths(packages...)
+	var dependencies = getRecursivePaths(slices.Collect(maps.Values(storePaths)))
+	//fmt.Printf("%+v\n", dependencies)
+	_ = dependencies
+
+	for dep, _ := range dependencies {
+		storeConfig = addVolume(storeConfig, mount(dep))
+	}
+
+	// TODO setup the main command!
+	commandConfig := M(
+		P("spec", M(
+			SP("containers", A(M(
+				P("command", []string{"/bin/start-script.sh"}),
+				P("args", []string{"/nix/store/xzx3l4kh8dvngvlhfzsn7936klwvd4mv-firefox-139.0.1/bin/firefox"}),
+			))),
+		)),
+	)
 
 
 //	xyz3 := M(
@@ -236,11 +261,22 @@ func main() {
 
 	yaml := skeleton.
 		merge(namingConfig).
+		merge(commandConfig).
 		merge(securityConfig).
 		merge(baseConfig).
 		merge(homeConfig).
-		merge(featureConfig)
+		merge(featureConfig).
+		merge(storeConfig)
 	output := toYaml(yaml)
-	fmt.Println(output)
+
+	outputPath := "/tmp/experiment.yaml"
+	file, err := os.Create(outputPath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString(output)
+	fmt.Printf("created config file %s\n", outputPath)
 
 }
