@@ -153,6 +153,14 @@ func toYamlHelper(data interface{}, sb *strings.Builder,
 	switch v := data.(type) {
 	case string:
 		sb.WriteString(fmt.Sprintf(" %s", v))
+	case int:
+		sb.WriteString(fmt.Sprintf(" %d", v))
+	case bool:
+		if v == true {
+			sb.WriteString(" true")
+		} else {
+			sb.WriteString(" false")
+		}
 
 	case Map:
 		first := true

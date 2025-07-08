@@ -12,8 +12,6 @@ func getStorePaths(commands ...string) map[string]string {
 	var result = map[string]string{}
 
 	for _, command := range commands {
-		fmt.Println(command)
-
 		output, err := exec.Command("which", command).Output()
 		if err != nil {
 			fmt.Printf("Warning: command '%s' not found: %s\n", command, err)
