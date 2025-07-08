@@ -1,5 +1,5 @@
 package main
-import _ "os"
+import "os"
 import "fmt"
 import "slices"
 import "encoding/json"
@@ -11,6 +11,16 @@ func env(name string, value string) Map {
 	return M(P("name", name), P("value", value))
 }
 
+func envConfig(envVars ...Map) Map {
+	return M(
+		P("spec", M(
+			SP("containers", A(M(
+				P("env", A(envVars...)),
+			))),
+		)),
+	)
+}
+
 type Volume struct {
 	hostPath string
 	mountPath string
@@ -18,19 +28,29 @@ type Volume struct {
 }
 
 func addVolume(conf Map, vol Volume) Map {
+	var filetype = "Directory"
+
+	info, err := os.Stat(vol.hostPath)
+	if err != nil {
+		panic(err)
+	}
+	if !info.IsDir() {
+		filetype = "File"
+	}
+
 	return M(
 		P("spec", M(
 			SP("containers", A(M(
-				SP("volumeMounts", A(M(
+				P("volumeMounts", A(M(
 					P("mountPath", vol.mountPath),
 					P("name", vol.name),
 				))),
 			))),
-			SP("volumes", A(M(
+			P("volumes", A(M(
 				P("name", vol.name),
 				P("hostPath", M(
 					P("path", vol.hostPath),
-					P("type", "Directory"),
+					P("type", filetype),
 				)),
 			))),
 		)),
@@ -79,10 +99,10 @@ func main() {
 		P("spec", M(
 			SP("containers", A(M(
 				P("name", nil),
-				SP("env", A()),
-				SP("volumeMounts", A()),
+				P("env", A()),
+				P("volumeMounts", A()),
 			))),
-			SP("volumes", A()),
+			P("volumes", A()),
 		)),
 	)
 
@@ -136,30 +156,16 @@ func main() {
 
 	// home config
 	containerHomePath := fmt.Sprintf("/home/%s", name)
-	targetHomePath := conf["home"].(map[string]interface{})["path"]
-	homeConfig := M(
-		P("spec", M(
-			SP("containers", A(M(
-				P("env", A(
-					env("HOME", containerHomePath),
-				)),
-				SP("volumeMounts", A(M(
-					P("mountPath", containerHomePath),
-					P("name", "home-dir"),
-				))),
-			))),
-			P("volumes", A(M(
-				P("name", "home-dir"),
-				P("hostPath", M(
-					P("path", targetHomePath),
-					P("type", "Directory"),
-				)),
-			))),
-		)),
-	)
+	targetHomePath := conf["home"].(map[string]interface{})["path"].(string)
+	homeConfig := envConfig(env("HOME", containerHomePath))
+	homeConfig = addVolume(homeConfig,
+		mount(targetHomePath).
+		to(containerHomePath).
+		as("home-dir"))
 
 	// config provided by features
 	featureConfig := M()
+	var runPath = fmt.Sprintf("/run/user/%d",uid)
 	for _, f := range conf["features"].([]interface{}) {
 		var name string
 		var options map[string]interface{}
@@ -174,29 +180,25 @@ func main() {
 		fconf := M()
 		switch name {
 		case "wayland":
-			fconf = M(
-				P("spec", M(
-					SP("containers", A(M(
-						P("env", A(
-							env("WAYLAND_DISPLAY", "wayland-1"),
-							env("XDG_RUNTIME_DIR", fmt.Sprintf("/run/user/%d",uid)),
-						)),
-					))),
-				)),
-			)
-			fconf = addVolume(fconf, mount("/run/user/1001/wayland-1").as("wayland-1"))
+			fconf = envConfig(
+				env("WAYLAND_DISPLAY", "wayland-1"),
+				env("XDG_RUNTIME_DIR", runPath))
+			fconf = addVolume(fconf, mount(runPath + "/wayland-1").as("f-wayland"))
 		case "pulse":
-			fconf = M(
-				P("spec", M(
-					SP("containers", A(M(
-			//			P("env", A(
-			//				env("PULSE_SERVER", "unix:/run/user/1001/pulse/native"),
-			//				env("XDG_RUNTIME_DIR", fmt.Sprintf("/run/user/%d",uid)),
-			//			)),
-					))),
-				)),
-			)
-			//fconf = addVolume(fconf, mount("/run/user/1001/wayland-1").as("wayland-1"))
+			fconf = envConfig(
+				env("PULSE_SERVER", "unix:/run/user/1001/pulse/native"))
+			fconf = addVolume(fconf, mount(runPath + "/pulse").as("f-pulse"))
+		case "fonts":
+			fconf = envConfig(
+				env("FONTCONFIG_PATH", "/etc/fonts"))
+			fconf = addVolume(fconf, mount("/etc/fonts").as("f-fonts"))
+		case "cacert":
+			// TODO avoid hardcoding!
+			fconf = M()
+			fconf = addVolume(fconf, mount("/etc/ssl").as("f-cacert-1"))
+			fconf = addVolume(fconf, mount("/etc/static/ssl").as("f-cacert-2"))
+			fconf = addVolume(fconf, mount("/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt").as("f-cacert-3"))
+
 		case "webcam":
 			fmt.Println(options)
 		default:
