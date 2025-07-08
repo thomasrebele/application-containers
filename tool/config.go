@@ -5,6 +5,11 @@ import "fmt"
 import "slices"
 import "maps"
 
+type Pod struct {
+	name string
+	yaml string
+}
+
 
 func env(name string, value string) Map {
 	return M(P("name", name), P("value", value))
@@ -68,7 +73,8 @@ func (vol Volume) as(name string) Volume {
 	return Volume{vol.hostPath, vol.mountPath, name}
 }
 
-func buildPodConfig(jsonConf map[string]interface{}) string {
+func buildPodConfig(jsonConf map[string]interface{}) Pod {
+	// TODO add comment to yaml mentioning the source of the json
 
 	// default pod options
 	skeleton := M(
@@ -121,13 +127,12 @@ func buildPodConfig(jsonConf map[string]interface{}) string {
 		)),
 	)
 
-	// TODO check which properties can be removed
-	name := jsonConf["name"]
+	name := "act-" + jsonConf["name"].(string)
 	namingConfig := M(
 		P("metadata", M(
 			P("name", name),
 			P("labels", M(
-				P("app", name),
+				P("created-by", "application-containers-tool"),
 			)),
 		)),
 		P("spec", M(
@@ -236,5 +241,5 @@ func buildPodConfig(jsonConf map[string]interface{}) string {
 		merge(homeConfig).
 		merge(featureConfig).
 		merge(storeConfig)
-	return toYaml(yaml)
+	return Pod{name, toYaml(yaml)}
 }

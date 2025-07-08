@@ -4,7 +4,8 @@ import "os"
 import "fmt"
 import "encoding/json"
 import "io/ioutil"
-
+import "path/filepath"
+import "os/user"
 
 
 func main() {
@@ -22,17 +23,28 @@ func main() {
 		return
 	}
 
-	output := buildPodConfig(jsonConf)
+	pod := buildPodConfig(jsonConf)
 
-	outputPath := "/tmp/experiment.yaml"
+	// config dir setup
+	usr, _ := user.Current()
+	configPath := filepath.Join(usr.HomeDir, ".config", "application-containers-tool")
+	yamlPath := filepath.Join(configPath, "generated")
+	err = os.MkdirAll(yamlPath, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+
+
+
+	outputPath := filepath.Join(yamlPath, pod.name + ".yaml")
 	file, err := os.Create(outputPath)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	file.WriteString(output)
+	file.WriteString(pod.yaml)
 	fmt.Printf("created config file %s\n", outputPath)
 
-
+	
 }
