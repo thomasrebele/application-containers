@@ -31,8 +31,6 @@ func getStorePaths(commands ...string) map[string]string {
 		result[command] = realPath
 	}
 
-	fmt.Println(result);
-
 	return result;
 }
 

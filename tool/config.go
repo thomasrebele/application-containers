@@ -208,28 +208,16 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 			// TODO avoid hardcoding
 			fconf = envConfig(
 				env("FONTCONFIG_PATH", "/etc/fonts"))
-			volumes["/etc/fonts"] = "/etc/fonts"
-			volumes["/etc/static/fonts"] = "/etc/static/fonts"
 			addVolumeRecursively(&volumes, "/etc/fonts")
 
 			for font, _ := range getFontStorePaths() {
-				fmt.Println(font)
 				volumes[font] = font
 			}
 
-
-
 		case "cacert":
-			fconf = M()
-			volumes["/etc/ssl"] = "/etc/ssl"
-			volumes["/etc/static/ssl"] = "/etc/static/ssl"
-			// TODO avoid hardcoding!
-			// use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
-			cacertPath := "/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt"
-			volumes[cacertPath] = cacertPath
+			addVolumeRecursively(&volumes, "/etc/ssl")
 
 		case "webcam":
-			fconf = M()
 			for _, device := range options["devices"].([]interface{}) {
 				d := device.(string)
 				volumes["/dev/" + d] = "/dev/" + d
@@ -242,7 +230,6 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	}
 
 	
-	// TODO use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
 	var packages1 = jsonConf["packages"].([]interface{})
 	var packages = make([]string, len(packages1))
 	for i, v := range packages1 {
@@ -250,9 +237,6 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	}
 	var storePaths = getStorePaths(packages...)
 	var dependencies = getDependeeStorePaths(slices.Collect(maps.Values(storePaths)))
-	//fmt.Printf("%+v\n", dependencies)
-	_ = dependencies
-
 	for dep, _ := range dependencies {
 		volumes[dep] = dep
 	}
