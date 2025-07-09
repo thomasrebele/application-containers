@@ -45,6 +45,5 @@ func main() {
 
 	file.WriteString(pod.yaml)
 	fmt.Printf("created config file %s\n", outputPath)
-
 	
 }

@@ -31,10 +31,12 @@ func getStorePaths(commands ...string) map[string]string {
 		result[command] = realPath
 	}
 
+	fmt.Println(result);
+
 	return result;
 }
 
-func getRecursivePaths(paths []string) map[string]bool {
+func getDependeeStorePaths(paths []string) map[string]bool {
 	var result = map[string]bool{}
 
 	for _, path := range paths {
@@ -55,3 +57,23 @@ func getRecursivePaths(paths []string) map[string]bool {
 	return result;
 }
 
+func getFontStorePaths() map[string]bool {
+	var result = map[string]bool{}
+
+	output, err := exec.Command("fc-list", "-f%{file}\n").Output()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		if !strings.HasPrefix(line, "/nix/store/") {
+			continue
+		}
+		var parts = strings.Split(line, "/")
+		var l = strings.Join(parts[:4], "/")
+		result[string(l)] = true
+	}
+
+
+	return result
+}

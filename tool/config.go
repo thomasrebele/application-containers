@@ -4,6 +4,7 @@ import "os"
 import "fmt"
 import "slices"
 import "maps"
+import "path/filepath"
 
 type Pod struct {
 	name string
@@ -31,7 +32,7 @@ type Volume struct {
 	name string
 }
 
-func addVolume(conf Map, vol Volume) Map {
+func addVolumeConfig(conf Map, vol Volume) Map {
 	var filetype = "Directory"
 
 	info, err := os.Stat(vol.hostPath)
@@ -47,11 +48,11 @@ func addVolume(conf Map, vol Volume) Map {
 			SP("containers", A(M(
 				P("volumeMounts", A(M(
 					P("mountPath", vol.mountPath),
-					P("name", vol.name),
+					P("name", vol.mountPath),
 				))),
 			))),
 			P("volumes", A(M(
-				P("name", vol.name),
+				P("name", vol.mountPath),
 				P("hostPath", M(
 					P("path", vol.hostPath),
 					P("type", filetype),
@@ -59,6 +60,30 @@ func addVolume(conf Map, vol Volume) Map {
 			))),
 		)),
 	))
+}
+
+func addVolumeRecursively(volumes *map[string]string, containerPath string) {
+	entries, err := os.ReadDir(containerPath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read directory %s: %w", containerPath, err))
+	}
+
+	for _, entry := range entries {
+		fullPath := filepath.Join(containerPath, entry.Name())
+
+		info, err := os.Lstat(fullPath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to stat %s: %w", fullPath, err))
+		}
+
+		if info.Mode() & os.ModeSymlink != 0 {
+			(*volumes)[fullPath] = fullPath
+		} 
+		if info.IsDir() {
+			addVolumeRecursively(volumes, fullPath)
+		}
+	}
+
 }
 
 func mount(hostPath string) Volume {
@@ -102,6 +127,8 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 					env("TERM", "xterm"),
 				)),
 				P("image", "localhost/thinbase:latest"),
+				P("stdin", true),
+				P("tty", true),
 			))),
 			P("restartPolicy", "Never"),
 		)),
@@ -142,14 +169,14 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		)),
 	)
 
+	//
+	var volumes = map[string]string{}
+
 	// home config
 	containerHomePath := fmt.Sprintf("/home/%s", name)
 	targetHomePath := jsonConf["home"].(map[string]interface{})["path"].(string)
 	homeConfig := envConfig(env("HOME", containerHomePath))
-	homeConfig = addVolume(homeConfig,
-		mount(targetHomePath).
-		to(containerHomePath).
-		as("home-dir"))
+	volumes[containerHomePath] = targetHomePath
 
 	// config provided by features
 	featureConfig := M()
@@ -170,33 +197,42 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 			fconf = envConfig(
 				env("WAYLAND_DISPLAY", "wayland-1"),
 				env("XDG_RUNTIME_DIR", runPath))
-			fconf = addVolume(fconf, mount(runPath + "/wayland-1").as("f-wayland"))
+			volumes[runPath + "/wayland-1"] = runPath + "/wayland-1"
 
 		case "pulse":
 			fconf = envConfig(
 				env("PULSE_SERVER", "unix:/run/user/1001/pulse/native"))
-			fconf = addVolume(fconf, mount(runPath + "/pulse").as("f-pulse"))
+			volumes[runPath + "/pulse"] = runPath + "/pulse"
 
 		case "fonts":
+			// TODO avoid hardcoding
 			fconf = envConfig(
 				env("FONTCONFIG_PATH", "/etc/fonts"))
-			fconf = addVolume(fconf, mount("/etc/fonts").as("f-fonts"))
+			volumes["/etc/fonts"] = "/etc/fonts"
+			volumes["/etc/static/fonts"] = "/etc/static/fonts"
+			addVolumeRecursively(&volumes, "/etc/fonts")
+
+			for font, _ := range getFontStorePaths() {
+				fmt.Println(font)
+				volumes[font] = font
+			}
+
+
 
 		case "cacert":
 			fconf = M()
-			fconf = addVolume(fconf, mount("/etc/ssl").as("f-cacert-1"))
-			fconf = addVolume(fconf, mount("/etc/static/ssl").as("f-cacert-2"))
+			volumes["/etc/ssl"] = "/etc/ssl"
+			volumes["/etc/static/ssl"] = "/etc/static/ssl"
 			// TODO avoid hardcoding!
 			// use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
-			fconf = addVolume(fconf, mount("/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt").as("f-cacert-3"))
+			cacertPath := "/nix/store/b9anbghrppj43ci27fh0zyawis1plxik-nss-cacert-3.111/etc/ssl/certs/ca-bundle.crt"
+			volumes[cacertPath] = cacertPath
 
 		case "webcam":
-			var count = 0
 			fconf = M()
 			for _, device := range options["devices"].([]interface{}) {
 				d := device.(string)
-				fconf = addVolume(fconf, mount("/dev/" + d).as("f-webcam-" + d))
-				count += 1
+				volumes["/dev/" + d] = "/dev/" + d
 			}
 
 		default:
@@ -205,8 +241,6 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		featureConfig = featureConfig.merge(fconf)
 	}
 
-	// TODO avoid copying the map again and again!
-	storeConfig := M()
 	
 	// TODO use nix-instantiate --eval-only --expr '(import <nixpkgs> {}).cacert.outPath' instead
 	var packages1 = jsonConf["packages"].([]interface{})
@@ -215,12 +249,12 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		packages[i] = v.(string)
 	}
 	var storePaths = getStorePaths(packages...)
-	var dependencies = getRecursivePaths(slices.Collect(maps.Values(storePaths)))
+	var dependencies = getDependeeStorePaths(slices.Collect(maps.Values(storePaths)))
 	//fmt.Printf("%+v\n", dependencies)
 	_ = dependencies
 
 	for dep, _ := range dependencies {
-		storeConfig = addVolume(storeConfig, mount(dep))
+		volumes[dep] = dep
 	}
 
 	// TODO setup the main command!
@@ -232,6 +266,12 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 			))),
 		)),
 	)
+
+	// TODO avoid copying the map again and again!
+	storeConfig := M()
+	for containerPath, hostPath := range volumes {
+		storeConfig = addVolumeConfig(storeConfig, mount(hostPath).to(containerPath))
+	}
 
 	yaml := skeleton.
 		merge(namingConfig).
