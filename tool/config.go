@@ -4,10 +4,12 @@ import "os"
 import "fmt"
 import "slices"
 import "maps"
+import "sort"
 
 type Pod struct {
 	name string
 	yaml string
+	yamlPath *string
 }
 
 
@@ -181,6 +183,7 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		case "wayland":
 			fconf = envConfig(
 				env("WAYLAND_DISPLAY", "wayland-1"),
+				// TODO fix the owner/permissions of the runpath volume
 				env("XDG_RUNTIME_DIR", runPath))
 			volumes[runPath + "/wayland-1"] = runPath + "/wayland-1"
 
@@ -203,6 +206,13 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 				volumes["/dev/" + d] = "/dev/" + d
 			}
 
+		// TODO add feature "dbus"
+		// dbus is necessary for 'firefox ...' commands to open a new tab
+		// - /etc/dbus-1/session.conf needs to disable apparmor for certain paths?!?
+		//   (see meld ../addendum/etc/dbus-1/ /etc/dbus-1)
+		// - need to start dbus and set DBUS_SESSION_BUS_ADDRESS:
+		//   DBUS_SESSION_BUS_ADDRESS=`/bin/dbus-daemon --fork --config-file=/etc/dbus-1/session.conf --print-address`
+
 		default:
 			fmt.Printf("Warning: option %s not yet supported\n", name)
 		}
@@ -221,20 +231,40 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		volumes[dep] = dep
 	}
 
+	// start-script is used to setup dbus
+	// dbus is necessary for 'firefox ...' commands to open a new tab
+
 	// TODO setup the main command!
+	//commandConfig := M(
+	//	P("spec", M(
+	//		SP("containers", A(M(
+	//			P("command", []string{"/bin/start-script.sh"}),
+	//			P("args", []string{"/nix/store/xzx3l4kh8dvngvlhfzsn7936klwvd4mv-firefox-139.0.1/bin/firefox"}),
+	//		))),
+	//	)),
+	//)
+
+
+	var command = getCommandPath(packages[0])
 	commandConfig := M(
 		P("spec", M(
 			SP("containers", A(M(
-				P("command", []string{"/bin/start-script.sh"}),
-				P("args", []string{"/nix/store/xzx3l4kh8dvngvlhfzsn7936klwvd4mv-firefox-139.0.1/bin/firefox"}),
+				P("command", []string{"/bin/sh"}),
+				P("args", []string{"-c", "\"export DBUS_SESSION_BUS_ADDRESS=`/bin/dbus-daemon --fork --config-file=/etc/dbus-1/session.conf --print-address`; " + *command + "\""}),
 			))),
 		)),
 	)
 
+
 	// TODO avoid copying the map again and again!
 	storeConfig := M()
-	for containerPath, hostPath := range volumes {
-		storeConfig = addVolumeConfig(storeConfig, mount(hostPath).to(containerPath))
+	keys := make([]string, 0, len(volumes))
+	for containerPath, _ := range volumes {
+		keys = append(keys,containerPath)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		storeConfig = addVolumeConfig(storeConfig, mount(volumes[key]).to(key))
 	}
 
 	yaml := skeleton.
@@ -245,5 +275,5 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		merge(homeConfig).
 		merge(featureConfig).
 		merge(storeConfig)
-	return Pod{name, toYaml(yaml)}
+	return Pod{name, toYaml(yaml), nil}
 }

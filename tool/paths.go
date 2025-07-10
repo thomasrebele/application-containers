@@ -8,6 +8,33 @@ import (
 	"path/filepath"
 )
 
+func getCommandPath(command string) *string {
+	output, err := exec.Command("which", command).Output()
+	if err != nil {
+		fmt.Printf("Warning: command '%s' not found: %s\n", command, err)
+		return nil
+	}
+	var path = strings.TrimSpace(string(output))
+	realPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		fmt.Printf("Warning: could not resolve path '%s' for command '%s': %s", path, command, err)
+		return nil
+	}
+	return &realPath
+}
+
+func getCommandPaths(commands ...string) map[string]string {
+	var result = map[string]string{}
+
+	for _, command := range commands {
+		var path = getCommandPath(command)
+		if path != nil {
+			result[command] = *path
+		}
+	}
+
+	return result
+}
 
 func getStorePaths(commands ...string) map[string]string {
 	var result = map[string]string{}
