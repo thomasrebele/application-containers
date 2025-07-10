@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -36,42 +37,74 @@ func getStorePaths(commands ...string) map[string]string {
 
 func getDependeeStorePaths(paths []string) map[string]bool {
 	var result = map[string]bool{}
-
 	for _, path := range paths {
-		output, err := exec.Command("nix-store", "-qR", path).Output()
-		if err != nil {
-			fmt.Printf("Warning: could not get path because of error: %s\n", err)
-			continue
-		}
-
-		for _, p := range strings.Split(string(output), "\n") {
-			if p == "" {
-				continue
-			}
-			result[p] = true
-		}
+		collectDependeeStorePaths(path, &result)
 	}
-
 	return result;
 }
 
-func getFontStorePaths() map[string]bool {
-	var result = map[string]bool{}
-
-	output, err := exec.Command("fc-list", "-f%{file}\n").Output()
+func collectDependeeStorePaths(path string, result *map[string]bool) {
+	output, err := exec.Command("nix-store", "-qR", path).Output()
 	if err != nil {
-		panic(err)
+		fmt.Printf("Warning: could not get path because of error: %s\n", err)
+		return
 	}
 
-	for _, line := range strings.Split(string(output), "\n") {
-		if !strings.HasPrefix(line, "/nix/store/") {
-			continue
+	for _, p := range strings.Split(string(output), "\n") {
+		if p == "" {
+			return
 		}
-		var parts = strings.Split(line, "/")
-		var l = strings.Join(parts[:4], "/")
-		result[string(l)] = true
+		(*result)[p] = true
 	}
+}
 
-
+func getDependeePaths(path string) map[string]bool {
+	var result = map[string]bool{}
+	collectDependeePaths(path, &result);
 	return result
 }
+
+func collectDependeePaths(path string, result *map[string]bool) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		panic(fmt.Sprintf("failed to stat %s: %w", path, err))
+	}
+
+	// nix store paths have their own dependees
+	if strings.HasPrefix(path, "/nix/store/") {
+		(*result)[path] = true
+		collectDependeeStorePaths(path, result)
+		return
+	}
+
+	// decend into symbolic links
+	if info.Mode() & os.ModeSymlink != 0 {
+		(*result)[path] = true
+		target, err := os.Readlink(path)
+		if err != nil {
+			fmt.Println("Error reading symlink:", err)
+			return
+		}
+		collectDependeePaths(target, result)
+		return
+	}
+
+	// decend into directories
+	if !info.IsDir() {
+		return
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read directory %s: %w", path, err))
+	}
+
+	for _, entry := range entries {
+
+		fullPath := filepath.Join(path, entry.Name())
+		collectDependeePaths(fullPath, result)
+	}
+
+}
+
+

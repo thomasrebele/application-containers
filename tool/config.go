@@ -4,7 +4,6 @@ import "os"
 import "fmt"
 import "slices"
 import "maps"
-import "path/filepath"
 
 type Pod struct {
 	name string
@@ -63,25 +62,11 @@ func addVolumeConfig(conf Map, vol Volume) Map {
 }
 
 func addVolumeRecursively(volumes *map[string]string, containerPath string) {
-	entries, err := os.ReadDir(containerPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to read directory %s: %w", containerPath, err))
-	}
 
-	for _, entry := range entries {
-		fullPath := filepath.Join(containerPath, entry.Name())
+	var depPaths = getDependeePaths(containerPath)
 
-		info, err := os.Lstat(fullPath)
-		if err != nil {
-			panic(fmt.Sprintf("failed to stat %s: %w", fullPath, err))
-		}
-
-		if info.Mode() & os.ModeSymlink != 0 {
-			(*volumes)[fullPath] = fullPath
-		} 
-		if info.IsDir() {
-			addVolumeRecursively(volumes, fullPath)
-		}
+	for path, _ := range depPaths {
+		(*volumes)[path] = path
 	}
 
 }
@@ -205,14 +190,9 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 			volumes[runPath + "/pulse"] = runPath + "/pulse"
 
 		case "fonts":
-			// TODO avoid hardcoding
 			fconf = envConfig(
 				env("FONTCONFIG_PATH", "/etc/fonts"))
 			addVolumeRecursively(&volumes, "/etc/fonts")
-
-			for font, _ := range getFontStorePaths() {
-				volumes[font] = font
-			}
 
 		case "cacert":
 			addVolumeRecursively(&volumes, "/etc/ssl")
