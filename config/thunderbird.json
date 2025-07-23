@@ -1,7 +1,7 @@
 {
 	"name": "thunderbird",
 	"home": "/home/tr/container-data/mail/home/tr",
-	"packages": ["thunderbird"],
+	"commands": ["thunderbird"],
 	"features": [
 		"wayland",
 		"fonts",

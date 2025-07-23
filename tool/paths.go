@@ -36,27 +36,26 @@ func getCommandPaths(commands ...string) map[string]string {
 	return result
 }
 
+//func getStorePathForPackageName(name ...string) *string {
+//	var v = ""
+//	return &v
+//}
+
 func getStorePaths(commands ...string) map[string]string {
 	var result = map[string]string{}
 
 	for _, command := range commands {
-		output, err := exec.Command("which", command).Output()
-		if err != nil {
-			fmt.Printf("Warning: command '%s' not found: %s\n", command, err)
-			continue
-		}
-		var path = strings.TrimSpace(string(output))
-		realPath, err := filepath.EvalSymlinks(path)
-		if err != nil {
-			fmt.Printf("Warning: could not resolve path '%s' for command '%s': %s", path, command, err)
+		var path = getCommandPath(command);
+		if path == nil {
+			fmt.Printf("Warning: store path for command '%s' could not be resolved\n", command)
 			continue
 		}
 
-		if !strings.HasPrefix(realPath, "/nix/store") {
+		if !strings.HasPrefix(*path, "/nix/store") {
 			fmt.Printf("Warning: the path of command '%s' is not within /nix/store: %s", command, path)
 			continue
 		}
-		result[command] = realPath
+		result[command] = *path
 	}
 
 	return result;

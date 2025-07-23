@@ -222,12 +222,12 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	}
 
 	
-	var packages1 = jsonConf["packages"].([]interface{})
-	var packages = make([]string, len(packages1))
-	for i, v := range packages1 {
-		packages[i] = v.(string)
+	var commands1 = jsonConf["commands"].([]interface{})
+	var commands = make([]string, len(commands1))
+	for i, v := range commands1 {
+		commands[i] = v.(string)
 	}
-	var storePaths = getStorePaths(packages...)
+	var storePaths = getStorePaths(commands...)
 	var dependencies = getDependeeStorePaths(slices.Collect(maps.Values(storePaths)))
 	for dep, _ := range dependencies {
 		volumes[dep] = dep
@@ -247,7 +247,7 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	//)
 
 
-	var command = getCommandPath(packages[0])
+	var command = getCommandPath(commands[0])
 	commandConfig := M(
 		P("spec", M(
 			SP("containers", A(M(

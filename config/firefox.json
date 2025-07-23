@@ -1,7 +1,7 @@
 {
 	"name": "firefox",
 	"home": "/home/tr/container-data/browsing/home/tr",
-	"packages": ["firefox"],
+	"commands": ["firefox"],
 	"features": [
 		"wayland",
 		"pulse",
