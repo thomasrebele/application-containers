@@ -1,7 +1,7 @@
 {
 	"name": "firefox-experimental",
-	"home": {"scheme": "default", "path": "/home/tr/container-data/act-experiment/home/tr" },
-	"packages": ["firefox", "fc-cache", "tmux"],
+	"home": "/home/tr/container-data/act-experiment/home/tr",
+	"packages": ["firefox"],
 	"features": [
 		"wayland",
 		"pulse",

@@ -163,7 +163,7 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 
 	// home config
 	containerHomePath := fmt.Sprintf("/home/%s", name)
-	targetHomePath := jsonConf["home"].(map[string]interface{})["path"].(string)
+	targetHomePath := jsonConf["home"].(string)
 	homeConfig := envConfig(env("HOME", containerHomePath))
 	volumes[containerHomePath] = targetHomePath
 
