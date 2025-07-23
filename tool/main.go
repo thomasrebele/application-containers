@@ -48,13 +48,17 @@ func (act *Act) updatePodConfig(jsonPath string) (Pod, bool) {
 	outputPath := filepath.Join(act.yamlPath, pod.name + ".yaml")
 	pod.yamlPath = &outputPath
 
-	bs, err = ioutil.ReadFile(*pod.yamlPath)
-	if err != nil {
-		panic(err)
-	}
-	var oldContent = string(bs)
-	if oldContent == pod.yaml {
-		return pod, false
+	// check if file exists
+	if _, err = os.Stat(*pod.yamlPath); os.IsExist(err) {
+		// check whether we would change its content
+		bs, err = ioutil.ReadFile(*pod.yamlPath)
+		if err != nil {
+			panic(err)
+		}
+		var oldContent = string(bs)
+		if oldContent == pod.yaml {
+			return pod, false
+		}
 	}
 
 	file, err := os.Create(outputPath)
@@ -64,7 +68,6 @@ func (act *Act) updatePodConfig(jsonPath string) (Pod, bool) {
 	defer file.Close()
 
 	file.WriteString(pod.yaml)
-	// TODO return false if yaml has not been changed
 	return pod, true
 }
 
