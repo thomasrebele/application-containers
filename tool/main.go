@@ -113,6 +113,8 @@ func main() {
 			fmt.Println("playing " + (*pod.yamlPath))
 			runIgnoreErrors("podman", "play", "kube", *pod.yamlPath)
 
+		} else {
+			runIgnoreErrors("podman", "pod", "start", pod.name)
 		}
 		
 	}
