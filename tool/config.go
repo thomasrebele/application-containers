@@ -158,6 +158,8 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 
 	//
 	var volumes = map[string]string{}
+	// use time zone of host by default
+	volumes["/etc/localtime"] = "/etc/localtime"
 
 	// home config
 	containerHomePath := fmt.Sprintf("/home/%s", name)
