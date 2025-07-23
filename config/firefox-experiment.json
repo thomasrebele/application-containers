@@ -1,0 +1,12 @@
+{
+	"name": "firefox-experimental",
+	"home": "/home/tr/container-data/act-experiment/home/tr",
+	"packages": ["firefox"],
+	"features": [
+		"wayland",
+		"pulse",
+		"fonts",
+		"cacert",
+		{"name": "webcam", "devices": ["video0", "video1"] }
+	]
+}
