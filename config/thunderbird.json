@@ -1,0 +1,10 @@
+{
+	"name": "thunderbird",
+	"home": "/home/tr/container-data/mail/home/tr",
+	"packages": ["thunderbird"],
+	"features": [
+		"wayland",
+		"fonts",
+		"cacert"
+	]
+}
