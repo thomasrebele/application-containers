@@ -227,7 +227,7 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	for i, v := range commands1 {
 		commands[i] = v.(string)
 	}
-	var storePaths = getStorePaths(commands...)
+	var storePaths = getStorePathsForCommands(commands...)
 	var dependencies = getDependeeStorePaths(slices.Collect(maps.Values(storePaths)))
 	for dep, _ := range dependencies {
 		volumes[dep] = dep
@@ -247,7 +247,11 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	//)
 
 
-	var command = getCommandPath(commands[0])
+	var command = resolveMainCommand(commands[0])
+	if command == nil {
+		panic("Error: could not infer the main command")
+	}
+
 	commandConfig := M(
 		P("spec", M(
 			SP("containers", A(M(

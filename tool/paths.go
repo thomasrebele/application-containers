@@ -36,23 +36,46 @@ func getCommandPaths(commands ...string) map[string]string {
 	return result
 }
 
-//func getStorePathForPackageName(name ...string) *string {
-//	var v = ""
-//	return &v
-//}
+func resolveMainCommand(name string) *string {
+	var result = getCommandPath(name)
+	if result != nil {
+		return result;
+	}
 
-func getStorePaths(commands ...string) map[string]string {
+	var path = getStorePathForPackageName(name);
+	var result2 = *path + "/bin/" + name;
+	return &result2;
+}
+
+func getStorePathForPackageName(name string) *string {
+	expr := fmt.Sprintf("(import <nixpkgs> {}).%s.outPath", name)
+	_ = expr;
+	output, err := exec.Command("nix-instantiate", "--eval-only", "--expr", expr).Output()
+	if err != nil {
+		fmt.Printf("Warning: could not get store path for package %s:XXX %s\n", name, err)
+		return nil
+	}
+
+	var path = strings.TrimSpace(string(output))
+	path = path[1:len(path)-1]
+	return &path
+}
+
+func getStorePathsForCommands(commands ...string) map[string]string {
 	var result = map[string]string{}
 
 	for _, command := range commands {
 		var path = getCommandPath(command);
 		if path == nil {
-			fmt.Printf("Warning: store path for command '%s' could not be resolved\n", command)
-			continue
+			path = getStorePathForPackageName(command);
+			if path == nil {
+				fmt.Printf("Warning: store path for command '%s' could not be resolved\n", command)
+				continue
+			}
 		}
 
 		if !strings.HasPrefix(*path, "/nix/store") {
-			fmt.Printf("Warning: the path of command '%s' is not within /nix/store: %s", command, path)
+			fmt.Printf("Warning: the path of command '%s' is not within /nix/store: %s\n", command, path)
 			continue
 		}
 		result[command] = *path
