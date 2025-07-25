@@ -167,6 +167,23 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	homeConfig := envConfig(env("HOME", containerHomePath))
 	volumes[containerHomePath] = targetHomePath
 
+	// mount config
+	if jsonConf["mount"] != nil {
+		for path, opts := range jsonConf["mount"].(map[string]interface{}) {
+			// no options yet, just mount at the same path
+			_ = opts
+			hostPath := path
+			switch opts.(type) {
+			case map[string]interface{}:
+				options := (opts.(map[string]interface{}))
+				if options["hostPath"] != nil {
+					hostPath = options["hostPath"].(string)
+				}
+			}
+			volumes[path] = hostPath
+		}
+	}
+
 	// config provided by features
 	featureConfig := M()
 	var runPath = fmt.Sprintf("/run/user/%d",uid)
@@ -221,7 +238,7 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 		featureConfig = featureConfig.merge(fconf)
 	}
 
-	
+	// add /nix/store paths for commands
 	var commands1 = jsonConf["commands"].([]interface{})
 	var commands = make([]string, len(commands1))
 	for i, v := range commands1 {
@@ -231,6 +248,22 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	var dependencies = getDependeeStorePaths(slices.Collect(maps.Values(storePaths)))
 	for dep, _ := range dependencies {
 		volumes[dep] = dep
+	}
+
+	// add /nix/store paths for packages
+	if jsonConf["packages"] != nil {
+		var packages1 = jsonConf["packages"].([]interface{})
+		var packages = make([]string, len(packages1))
+		for i, v := range packages1 {
+			packages[i] = v.(string)
+		}
+		for _, path := range packages {
+			storePath := getStorePathForPackageName(path)
+			dependencies = getDependeeStorePaths([]string{*storePath})
+			for dep, _ := range dependencies {
+				volumes[dep] = dep
+			}
+		}
 	}
 
 	// start-script is used to setup dbus
@@ -246,8 +279,16 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 	//	)),
 	//)
 
+	var command *string;
 
-	var command = resolveMainCommand(commands[0])
+	runOption := jsonConf["run"]
+
+	if runOption == nil {
+		command = resolveMainCommand(commands[0])
+	} else {
+		runCommand := runOption.(string)
+		command = &runCommand
+	}
 	if command == nil {
 		panic("Error: could not infer the main command")
 	}
