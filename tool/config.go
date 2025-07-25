@@ -5,6 +5,8 @@ import "fmt"
 import "slices"
 import "maps"
 import "sort"
+import "strings"
+import "path/filepath"
 
 type Pod struct {
 	name string
@@ -36,7 +38,7 @@ type Volume struct {
 func addVolumeConfig(conf Map, vol Volume) Map {
 	var filetype = "Directory"
 
-	info, err := os.Stat(vol.hostPath)
+	info, err := os.Lstat(vol.hostPath)
 	if err != nil {
 		panic(err)
 	}
@@ -64,13 +66,10 @@ func addVolumeConfig(conf Map, vol Volume) Map {
 }
 
 func addVolumeRecursively(volumes *map[string]string, containerPath string) {
-
 	var depPaths = getDependeePaths(containerPath)
-
 	for path, _ := range depPaths {
 		(*volumes)[path] = path
 	}
-
 }
 
 func mount(hostPath string) Volume {
@@ -83,6 +82,125 @@ func (vol Volume) to(mountPath string) Volume {
 
 func (vol Volume) as(name string) Volume {
 	return Volume{vol.hostPath, vol.mountPath, name}
+}
+
+func splitPath(path string) []string {
+	if path == "/" {
+		return []string{}
+	}
+	dir, last := filepath.Split(path)
+	if dir == "" {
+		return []string{last}
+	}
+	return append(splitPath(filepath.Clean(dir)), last)
+}
+
+func resolveFHSEnvSymlink(volumes *map[string]string, hostPath string, hostPathRoot string) (*string, bool) {
+	fmt.Printf("resolving %s\n", hostPath)
+	info, err := os.Lstat(hostPath)
+	if err != nil {
+		return nil, false
+	}
+
+	fmt.Printf("%s\n", info.Mode())
+	if info.Mode() & os.ModeSymlink == 0 {
+		return &hostPath, true
+	}
+
+	dst, err := os.Readlink(hostPath)
+	fmt.Printf("dst %s\n", dst)
+	if strings.HasPrefix(dst, "/nix/store/") {
+		// Q&D
+		parts := splitPath(dst)
+		fmt.Println("%s\n", parts)
+		needed := filepath.Join("/nix/store/", parts[2])
+		addVolumeRecursively(volumes, needed)
+
+		return &dst, true
+	}
+	if strings.HasPrefix(dst, "/proc/") {
+		return nil, true
+	}
+
+	result, _ := resolveFHSEnvSymlink(volumes, filepath.Join(hostPathRoot, dst), hostPathRoot)
+	if result != nil {
+		return result, true
+	}
+
+	// the file does not exist at the root, so ignore it
+	return nil, true
+}
+
+func integrateFHSEnvIntoMount(volumes *map[string]string, containerPath string, hostPath string, hostPathRoot string) {
+	fmt.Printf("\nintegrating %s into %s\n", hostPath, containerPath)
+	// check if path exists
+	var containerPathExists = false
+	if _, ok := (*volumes)[containerPath]; ok {
+		containerPathExists = true
+	}
+
+	// check the docker image as well
+	if !containerPathExists {
+		path := escapeShell(containerPath)
+		exists := runWithStatus("podman", "run", "--rm", "-it", "localhost/thinbase", "sh", "-c", "[[ -e " + path + " ]]")
+		containerPathExists = exists == 0
+	}
+
+	info, err := os.Lstat(hostPath)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to stat %s: %w", hostPath, err))
+	}
+
+	fmt.Printf("%s\n", info.Mode())
+	if info.Mode() & os.ModeSymlink != 0 {
+		// TODO deal with rootfs symbolic links!
+		resolvedPath, ok := resolveFHSEnvSymlink(volumes, hostPath, hostPathRoot)
+		if resolvedPath == nil {
+			if ok {return}
+			panic(fmt.Sprintf("Could not resolve path %s\n", hostPath))
+		}
+		if strings.HasPrefix(*resolvedPath, "/nix/store") {
+			if strings.Contains(*resolvedPath, "/proc") {panic("HERE")}
+			(*volumes)[containerPath] = *resolvedPath
+			return
+		}
+		if strings.HasPrefix(*resolvedPath, "/proc") {
+			return
+		}
+		if strings.HasSuffix(*resolvedPath, "/usr/lib32") {
+			// TODO: root/lib32 points to /usr/lib32, but root/usr/lib32 does not exist!
+			// (seems to be a problem of buildFHSEnv)
+			return
+		}
+		fmt.Printf("got resolved path %s\n", *resolvedPath)
+		integrateFHSEnvIntoMount(volumes, containerPath, *resolvedPath, hostPathRoot)
+		return
+	}
+
+	if !containerPathExists {
+		(*volumes)[containerPath] = hostPath
+		// Q&D we do not need the hostPath itself, but its symlink dependencies
+		addVolumeRecursively(volumes, hostPath)
+		return
+	}
+
+	if !info.IsDir() {
+		(*volumes)[containerPath] = hostPath
+		return
+	}
+
+	// decend into directories
+	fmt.Printf("descend into %s\n", hostPath)
+	entries, err := os.ReadDir(hostPath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read directory %s: %w", hostPath, err))
+	}
+
+	for _, entry := range entries {
+		childContainerPath := filepath.Join(containerPath, entry.Name())
+		childHostPath := filepath.Join(hostPath, entry.Name())
+		integrateFHSEnvIntoMount(volumes, childContainerPath, childHostPath, hostPathRoot)
+	}
 }
 
 func buildPodConfig(jsonConf map[string]interface{}) Pod {
@@ -169,18 +287,26 @@ func buildPodConfig(jsonConf map[string]interface{}) Pod {
 
 	// mount config
 	if jsonConf["mount"] != nil {
-		for path, opts := range jsonConf["mount"].(map[string]interface{}) {
-			// no options yet, just mount at the same path
+		for containerPath, opts := range jsonConf["mount"].(map[string]interface{}) {
+			// if there are no options, just mount at the same path
 			_ = opts
-			hostPath := path
+			targetPath := &containerPath
+			hostPath := containerPath
 			switch opts.(type) {
 			case map[string]interface{}:
 				options := (opts.(map[string]interface{}))
 				if options["hostPath"] != nil {
 					hostPath = options["hostPath"].(string)
 				}
+				if options["integrateFHSEnv"] != nil {
+					targetPath = nil
+					hostPath = options["integrateFHSEnv"].(string)
+					integrateFHSEnvIntoMount(&volumes, containerPath, hostPath, hostPath)
+				}
 			}
-			volumes[path] = hostPath
+			if targetPath != nil {
+				volumes[*targetPath] = hostPath
+			}
 		}
 	}
 

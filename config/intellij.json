@@ -1,0 +1,22 @@
+{
+	"name": "intellij-experimental",
+	"home": "/home/tr/container-data/act-experiment/home/tr",
+	"_run": "/home/tr/software/intellij/idea-IC-251.26927.53/bin/idea.sh",
+	"commands": ["tmux", "ldd", "file", "firefox"],
+	"packages": ["zlib", "strace", "glibc"],
+	"features": [
+		"wayland",
+		"pulse",
+		"fonts",
+		"cacert",
+		{"name": "webcam", "devices": ["video0", "video1"] }
+	],
+	"mount": {
+		"/home/tr/software/intellij/idea-IC-251.26927.53/": {},
+		"/tmp/.X11-unix": {},
+		"/lib64/ld-linux-x86-64.so.2": {"hostPath": "/nix/store/p9kdj55g5l39nbrxpjyz5wc1m0s7rzsx-glibc-2.40-66/lib/ld-linux-x86-64.so.2"},
+		"/": {
+			"integrateFHSEnv": "/nix/store/hdwh9mwi4hhxdlky9ql9f0vcp965q2pv-intellij-env-fhsenv-rootfs"
+		}
+	}
+}

@@ -2,11 +2,25 @@ package main
 
 import (
 	"os"
+	"syscall"
 	"fmt"
 	"os/exec"
 	"strings"
 	"path/filepath"
 )
+
+func escapeShell(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+func runWithStatus(command string, args ...string) int {
+	cmd := exec.Command(command, args...)
+	_, err := cmd.Output()
+	if exitError, ok := err.(*exec.ExitError); ok {
+		return exitError.ExitCode()
+	}
+	return cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+}
 
 func getCommandPath(command string) *string {
 	output, err := exec.Command("which", command).Output()
