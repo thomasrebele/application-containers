@@ -13,6 +13,9 @@ import "flag"
 // - add a command for rebuilding the base image
 // - reduce the base image to the bare minimum (no bash, coreutils, busybox, ...)
 // - use a sidecar for debugging
+// - some applications show problems when changing the home path (e.g., Firefox needs a restart in throubleshoot mode)
+//   so inherit the one from the parent, and use another way of indicating which pod we're working on
+//   (e.g., a dummy file /pod-FOO-BAR)
 
 type Act struct {
 	configPath string
