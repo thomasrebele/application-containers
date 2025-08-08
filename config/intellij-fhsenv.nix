@@ -6,6 +6,7 @@
     zlib
     strace
     fontconfig
+    udev
   ]) ++ (with pkgs.xorg; [
     libX11
     libXext

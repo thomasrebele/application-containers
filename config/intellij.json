@@ -2,7 +2,7 @@
 	"name": "intellij-experimental",
 	"home": "/home/tr/container-data/act-experiment/home/tr",
 	"_run": "/home/tr/software/intellij/idea-IC-251.26927.53/bin/idea.sh",
-	"commands": ["tmux", "ldd", "file", "firefox"],
+	"commands": ["tmux", "ldd", "file", "firefox", "git", "vi"],
 	"packages": ["zlib", "strace", "glibc"],
 	"features": [
 		"wayland",
@@ -14,9 +14,12 @@
 	"mount": {
 		"/home/tr/software/intellij/idea-IC-251.26927.53/": {},
 		"/tmp/.X11-unix": {},
+		"/etc/environment": {"hostPath": "/home/tr/container-data/act-experiment/home/tr/.env"},
 		"/lib64/ld-linux-x86-64.so.2": {"hostPath": "/nix/store/p9kdj55g5l39nbrxpjyz5wc1m0s7rzsx-glibc-2.40-66/lib/ld-linux-x86-64.so.2"},
+		"/lib32/libz.so.1": {"hostPath": "/nix/store/d8qd8zi576431b4zq6629p71g8vi1588-zlib-1.3.1/lib/libz.so.1.3.1"},
+		"/lib/libz.so.1": {"hostPath": "/nix/store/d8qd8zi576431b4zq6629p71g8vi1588-zlib-1.3.1/lib/libz.so.1.3.1"},
 		"/": {
-			"integrateFHSEnv": "/nix/store/hdwh9mwi4hhxdlky9ql9f0vcp965q2pv-intellij-env-fhsenv-rootfs"
+			"integrateFHSEnv": "/nix/store/ibqz910ks2m3xc9lf6ph4gg6n4clv7cf-intellij-env-fhsenv-rootfs"
 		}
 	}
 }
