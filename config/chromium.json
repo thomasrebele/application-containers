@@ -1,0 +1,13 @@
+{
+	"name": "browsing-chromium",
+	"home": "/home/tr/container-data/browsing-chromium/home/",
+	"commands": ["tmux", "chromium"],
+	"features": [
+		"wayland",
+		"pulse",
+		"fonts",
+		"cacert",
+		{"name": "webcam", "devices": ["video0", "video1"] }
+	],
+	"_TODO": "pass /tmp/.X11-unix to container"
+}
