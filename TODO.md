@@ -16,3 +16,19 @@
     #!/bin/sh
     export LD_LIBRARY_PATH=/lib64:$LD_LIBRARY_PATH
     /home/act-intellij-experimental/.jdks/ms-17.0.15/bin/java2 "$@"
+  - FYI, env:
+    FONTCONFIG_PATH=/etc/fonts
+    JAVA_HOME=/home/act-intellij-experimental/.jdks/ms-17.0.15
+    PWD=/
+    container=podman
+    HOME=/home/act-intellij-experimental
+    WAYLAND_DISPLAY=wayland-1
+    GRADLE_USER_HOME=/home/act-intellij-experimental/.gradle
+    TERM=xterm
+    SHLVL=1
+    LD_LIBRARY_PATH=/usr/lib:/lib:/lib64:
+    XDG_RUNTIME_DIR=/run/user/1001
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/act-intellij-experimental/.jdks/ms-17.0.15/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PULSE_SERVER=unix:/run/user/1001/pulse/native
+    OLDPWD=/tmp
+    _=/usr/bin/env
